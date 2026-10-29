@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnergyIQ — Devices</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .add-reading-form {
+    background: var(--bg-card-alt); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 22px 24px; margin-bottom: 24px;
+  }
+  .form-row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+  .form-group { display:flex; flex-direction:column; gap:6px; }
+  .form-label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.07em;
+    color:var(--text-muted); font-family:'DM Mono',monospace; }
+  .form-input {
+    background: var(--bg-card); border:1px solid var(--border-light);
+    color: var(--text-primary); padding:8px 12px; border-radius:var(--radius);
+    font-family:'DM Mono',monospace; font-size:0.85rem; outline:none; width:180px;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-result { margin-top: 12px; font-size:0.82rem; font-family:'DM Mono',monospace; }
+  .success { color: var(--green); }
+  .error   { color: var(--red); }
+  .active-dot { display:inline-block; width:7px; height:7px; border-radius:50%;
+    background:var(--green); margin-right:6px; vertical-align:middle; }
+  .inactive-dot { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-icon"></span>
+    <span class="logo-text">Enerlytics</span>
+  </div>
+  <nav class="nav">
+    <a href="index.html"     class="nav-item">      <span class="nav-icon">▦</span> Dashboard</a>
+    <a href="analytics.html" class="nav-item">       <span class="nav-icon">◈</span> Analytics</a>
+    <a href="alerts.html"    class="nav-item">       <span class="nav-icon">◉</span> Alerts</a>
+    <a href="devices.html"   class="nav-item active"><span class="nav-icon">◎</span> Devices</a>
+  </nav>
+  <div class="sidebar-footer"><span class="mono">v1.0 · Phase 1</span></div>
+</aside>
+
+<main class="main">
+
+  <header class="page-header">
+    <div>
+      <h1>Devices</h1>
+      <p class="subtitle">All monitored devices · add manual readings</p>
+    </div>
+    <div class="header-controls">
+      <select id="building-filter" class="select" onchange="loadDevices()">
+        <option value="">All buildings</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Add Reading Form -->
+  <div class="add-reading-form">
+    <h2 style="margin-bottom:16px;font-size:0.95rem">Add Energy Reading</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Device</label>
+        <select id="reading-device" class="form-input" style="width:220px">
+          <option value="">Select device...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" id="reading-date" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Energy (kWh)</label>
+        <input type="number" id="reading-kwh" class="form-input" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <button class="btn-primary" onclick="submitReading()">Submit Reading</button>
+    </div>
+    <div id="reading-result" class="form-result" style="display:none"></div>
+  </div>
+
+  <!-- Devices Table -->
+  <section class="table-section">
+    <div class="table-header">
+      <span class="chart-title">Device Registry</span>
+      <span class="chart-tag mono" id="device-count"></span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Status</th><th>Device</th><th>Building</th>
+            <th>Type</th><th>Rated Power</th><th>Installed</th>
+          </tr>
+        </thead>
+        <tbody id="devices-tbody">
+          <tr><td colspan="6" class="loading-row">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/devices.js"></script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnergyIQ — Consumption Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-icon"></span>
+    <span class="logo-text">Enerlytics</span>
+  </div>
+  <nav class="nav">
+    <a href="index.html"     class="nav-item active">
+      <span class="nav-icon">▦</span> Dashboard
+    </a>
+    <a href="analytics.html" class="nav-item">
+      <span class="nav-icon">◈</span> Analytics
+    </a>
+    <a href="alerts.html"    class="nav-item">
+      <span class="nav-icon">◉</span> Alerts
+      <span class="badge" id="alert-badge">—</span>
+    </a>
+    <a href="devices.html"   class="nav-item">
+      <span class="nav-icon">◎</span> Devices
+    </a>
+    <a href="trend.html"         class="nav-item"><span class="nav-icon">◬</span> Trend</a>
+    <a href="inefficiency.html"  class="nav-item"><span class="nav-icon">◍</span> Inefficiency</a>
+    <a href="forecast.html"      class="nav-item"><span class="nav-icon">◐</span> Forecast</a>
+    <a href="reports.html"       class="nav-item"><span class="nav-icon">◑</span> Reports</a>
+  </nav>
+  <div class="sidebar-footer">
+    <span class="mono">v3.0 · Phase 3</span>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- Header -->
+  <header class="page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="subtitle">Energy consumption overview · <span id="current-date"></span></p>
+    </div>
+    <div class="header-controls">
+      <select id="month-select" class="select">
+        <option value="1">January</option><option value="2">February</option>
+        <option value="3">March</option><option value="4">April</option>
+        <option value="5">May</option><option value="6">June</option>
+        <option value="7">July</option><option value="8">August</option>
+        <option value="9">September</option><option value="10">October</option>
+        <option value="11">November</option><option value="12">December</option>
+      </select>
+      <select id="year-select" class="select">
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026">2026</option>
+      </select>
+      <button class="btn-primary" onclick="loadAll()">Refresh</button>
+    </div>
+  </header>
+
+  <!-- KPI Cards -->
+  <section class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Buildings</div>
+      <div class="kpi-value" id="kpi-buildings">—</div>
+      <div class="kpi-sub">Active facilities</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Active Devices</div>
+      <div class="kpi-value" id="kpi-devices">—</div>
+      <div class="kpi-sub">Monitored units</div>
+    </div>
+    <div class="kpi-card kpi-highlight">
+      <div class="kpi-label">This Month (kWh)</div>
+      <div class="kpi-value" id="kpi-kwh">—</div>
+      <div class="kpi-sub">Total consumption</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Efficiency</div>
+      <div class="kpi-value" id="kpi-efficiency">—</div>
+      <div class="kpi-sub">Across all devices</div>
+    </div>
+    <div class="kpi-card kpi-danger">
+      <div class="kpi-label">Open Alerts</div>
+      <div class="kpi-value" id="kpi-alerts">—</div>
+      <div class="kpi-sub">Require attention</div>
+    </div>
+  </section>
+
+  <!-- Charts Row -->
+  <section class="charts-row">
+    <div class="chart-card chart-wide">
+      <div class="chart-header">
+        <span class="chart-title">30-Day Consumption Trend</span>
+        <span class="chart-tag mono">kWh / day</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="trend-chart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Building Comparison</span>
+        <span class="chart-tag mono">this month</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="building-chart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Building Table -->
+  <section class="table-section">
+    <div class="table-header">
+      <span class="chart-title">Building Consumption — Monthly</span>
+      <span class="chart-tag mono" id="table-month-label"></span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="building-table">
+        <thead>
+          <tr>
+            <th>Building</th>
+            <th>Type</th>
+            <th>Total kWh</th>
+            <th>kWh / sqft</th>
+            <th>Devices</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="building-tbody">
+          <tr><td colspan="6" class="loading-row">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Recent Alerts -->
+  <section class="table-section">
+    <div class="table-header">
+      <span class="chart-title">Recent Alerts</span>
+      <a href="alerts.html" class="link-sm">View all →</a>
+    </div>
+    <div id="alerts-container" class="alerts-list">
+      <div class="loading-row">Loading...</div>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>

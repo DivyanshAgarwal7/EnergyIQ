@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnergyIQ — Trend Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* ---- Page-specific styles ---- */
+  .score-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .score-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    cursor: default;
+  }
+  .score-card:hover { border-color: var(--border-light); }
+  .score-card-name {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .score-card-type {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 14px;
+  }
+  .score-ring-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .score-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+  .score-label-small {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+  }
+  .score-bar-bg {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--border);
+  }
+  .score-bar-fill {
+    height: 3px;
+    transition: width 0.8s ease;
+  }
+
+  /* MoM change chip */
+  .mom-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+  .mom-up   { background: var(--red-dim);   color: var(--red);   }
+  .mom-down { background: var(--green-dim); color: var(--green); }
+  .mom-flat { background: var(--bg-hover);  color: var(--text-muted); }
+
+  /* Period buttons */
+  .period-pills {
+    display: flex;
+    gap: 6px;
+  }
+  .period-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .period-btn.active,
+  .period-btn:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Export button */
+  .export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .export-btn:hover {
+    border-color: var(--green);
+    color: var(--green);
+    background: var(--green-dim);
+  }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 28px 0;
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-icon"></span>
+    <span class="logo-text">Enerlytics</span>
+  </div>
+  <nav class="nav">
+    <a href="index.html"          class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="analytics.html"      class="nav-item"><span class="nav-icon">◈</span> Analytics</a>
+    <a href="alerts.html"         class="nav-item">
+      <span class="nav-icon">◉</span> Alerts
+      <span class="badge" id="alert-badge" style="display:none">!</span>
+    </a>
+    <a href="devices.html"        class="nav-item"><span class="nav-icon">◎</span> Devices</a>
+    <a href="trend.html"          class="nav-item active"><span class="nav-icon">◬</span> Trend</a>
+    <a href="inefficiency.html"   class="nav-item"><span class="nav-icon">◍</span> Inefficiency</a>
+  </nav>
+  <div class="sidebar-footer"><span class="mono">v2.0 · Phase 2</span></div>
+</aside>
+
+<main class="main">
+
+  <header class="page-header">
+    <div>
+      <h1>Trend Analysis</h1>
+      <p class="subtitle">Month-over-month · building scores · multi-building comparison</p>
+    </div>
+    <div class="header-controls">
+      <div class="period-pills">
+        <button class="period-btn" onclick="setPeriod(3,  this)">3M</button>
+        <button class="period-btn active" onclick="setPeriod(6, this)">6M</button>
+        <button class="period-btn" onclick="setPeriod(12, this)">12M</button>
+      </div>
+      <a class="export-btn" id="export-trend-btn" href="#" target="_blank">↓ Export CSV</a>
+    </div>
+  </header>
+
+  <!-- Building Efficiency Scores -->
+  <div class="table-header" style="margin-bottom:16px">
+    <span class="chart-title">Building Efficiency Scores</span>
+    <span class="chart-tag mono">fn_building_efficiency() per building</span>
+  </div>
+  <div class="score-grid" id="score-grid">
+    <div class="loading-row">Loading scores...</div>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- Multi-building trend chart -->
+  <section class="chart-card" style="margin-bottom:28px">
+    <div class="chart-header">
+      <span class="chart-title">Daily Consumption — All Buildings</span>
+      <select id="days-select" class="select" style="font-size:0.8rem" onchange="loadDailyByBuilding()">
+        <option value="30">Last 30 days</option>
+        <option value="60">Last 60 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+    </div>
+    <div class="chart-wrap" style="height:280px">
+      <canvas id="multi-trend-chart"></canvas>
+    </div>
+  </section>
+
+  <!-- Month-over-month table -->
+  <section class="table-section" style="margin-bottom:28px">
+    <div class="table-header">
+      <span class="chart-title">Month-over-Month Consumption</span>
+      <span class="chart-tag mono">vw_mom_trend</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Building</th>
+            <th>Type</th>
+            <th>Month</th>
+            <th>Total kWh</th>
+            <th>Prev Month kWh</th>
+            <th>MoM Change</th>
+          </tr>
+        </thead>
+        <tbody id="mom-tbody">
+          <tr><td colspan="6" class="loading-row">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- MoM bar chart: latest month each building -->
+  <section class="charts-row" style="margin-bottom:28px">
+    <div class="chart-card chart-wide">
+      <div class="chart-header">
+        <span class="chart-title">Month-over-Month Change % by Building</span>
+        <span class="chart-tag mono">latest available month</span>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="mom-chart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">kWh / sqft Intensity</span>
+        <span class="chart-tag mono">this month</span>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="intensity-chart"></canvas>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/trend.js"></script>
+</body>
+</html>

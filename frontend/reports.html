@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnergyIQ — Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* Schedule cards */
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .schedule-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border-color 0.2s;
+  }
+  .schedule-card:hover    { border-color: var(--border-light); }
+  .schedule-card.inactive { opacity: 0.5; }
+
+  .sc-header { display:flex; justify-content:space-between; align-items:flex-start; }
+  .sc-name   { font-weight: 500; font-size: 0.95rem; }
+  .sc-type   { font-family: 'DM Mono', monospace; font-size: 0.68rem;
+               color: var(--text-muted); text-transform: uppercase; letter-spacing:0.07em; margin-top:2px; }
+
+  .sc-badges { display:flex; gap:6px; flex-wrap:wrap; }
+  .sc-badge  {
+    padding: 3px 9px; border-radius: 20px; font-size: 0.68rem;
+    font-family: 'DM Mono', monospace; border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .sc-badge.daily   { border-color: #4db8ff44; color: #4db8ff; }
+  .sc-badge.weekly  { border-color: #f0a50044; color: #f0a500; }
+  .sc-badge.monthly { border-color: #c084fc44; color: #c084fc; }
+
+  .sc-meta { font-size: 0.75rem; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+  .sc-meta span { display:block; }
+
+  .sc-actions { display:flex; gap:8px; margin-top:4px; }
+  .sc-run-btn {
+    flex:1; padding:7px; border-radius:var(--radius); border:none;
+    background:var(--accent); color:#0d0f12;
+    font-family:'Syne',sans-serif; font-weight:600; font-size:0.78rem;
+    cursor:pointer; text-align:center; transition:background 0.15s; text-decoration:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sc-run-btn:hover { background:var(--accent-dim); }
+  .sc-toggle-btn {
+    padding:7px 12px; border-radius:var(--radius);
+    border:1px solid var(--border-light); background:transparent;
+    color:var(--text-secondary); font-size:0.78rem; cursor:pointer; transition:all 0.15s;
+  }
+  .sc-toggle-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .sc-delete-btn {
+    padding:7px 10px; border-radius:var(--radius);
+    border:1px solid transparent; background:transparent;
+    color:var(--text-muted); font-size:0.78rem; cursor:pointer; transition:all 0.15s;
+  }
+  .sc-delete-btn:hover { border-color:var(--red); color:var(--red); }
+
+  /* Status dots */
+  .run-dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .dot-success { background:var(--green); }
+  .dot-failed  { background:var(--red); }
+  .dot-none    { background:var(--text-muted); }
+
+  /* New schedule form */
+  .new-schedule-form {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    margin-bottom: 28px;
+  }
+  .form-row    { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+  .form-group  { display:flex; flex-direction:column; gap:6px; }
+  .form-label  { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.07em;
+                 color:var(--text-muted); font-family:'DM Mono',monospace; }
+  .form-input  {
+    background:var(--bg-card); border:1px solid var(--border-light);
+    color:var(--text-primary); padding:8px 12px; border-radius:var(--radius);
+    font-family:'DM Mono',monospace; font-size:0.83rem; outline:none; min-width:160px;
+    transition:border-color 0.15s;
+  }
+  .form-input:focus { border-color:var(--accent); }
+  .form-result { margin-top:10px; font-size:0.8rem; font-family:'DM Mono',monospace; }
+  .success { color:var(--green); } .error { color:var(--red); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-icon"></span>
+    <span class="logo-text">Enerlytics</span>
+  </div>
+  <nav class="nav">
+    <a href="index.html"         class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="analytics.html"     class="nav-item"><span class="nav-icon">◈</span> Analytics</a>
+    <a href="alerts.html"        class="nav-item">
+      <span class="nav-icon">◉</span> Alerts
+      <span class="badge" id="alert-badge" style="display:none">!</span>
+    </a>
+    <a href="devices.html"       class="nav-item"><span class="nav-icon">◎</span> Devices</a>
+    <a href="trend.html"         class="nav-item"><span class="nav-icon">◬</span> Trend</a>
+    <a href="inefficiency.html"  class="nav-item"><span class="nav-icon">◍</span> Inefficiency</a>
+    <a href="forecast.html"      class="nav-item"><span class="nav-icon">◐</span> Forecast</a>
+    <a href="reports.html"       class="nav-item active"><span class="nav-icon">◑</span> Reports</a>
+  </nav>
+  <div class="sidebar-footer"><span class="mono">v3.0 · Phase 3</span></div>
+</aside>
+
+<main class="main">
+
+  <header class="page-header">
+    <div>
+      <h1>Reports</h1>
+      <p class="subtitle">Scheduled report management · run history · manual trigger</p>
+    </div>
+  </header>
+
+  <!-- New Schedule Form -->
+  <div class="new-schedule-form">
+    <h2 style="font-size:0.95rem;margin-bottom:16px">Create New Schedule</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Report Name</label>
+        <input type="text" id="new-name" class="form-input" placeholder="e.g. Weekly Lab Report" style="min-width:220px">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Report Type</label>
+        <select id="new-type" class="form-input">
+          <option value="BUILDING_MONTHLY">Building Monthly</option>
+          <option value="EFFICIENCY">Efficiency</option>
+          <option value="TREND">Trend</option>
+          <option value="ANOMALY">Anomaly</option>
+          <option value="FORECAST">Forecast</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Frequency</label>
+        <select id="new-freq" class="form-input">
+          <option value="DAILY">Daily</option>
+          <option value="WEEKLY" selected>Weekly</option>
+          <option value="MONTHLY">Monthly</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Building (optional)</label>
+        <select id="new-building" class="form-input">
+          <option value="">All buildings</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Format</label>
+        <select id="new-format" class="form-input" style="min-width:80px">
+          <option value="CSV">CSV</option>
+          <option value="JSON">JSON</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="createSchedule()">Add Schedule</button>
+    </div>
+    <div id="new-schedule-result" class="form-result" style="display:none"></div>
+  </div>
+
+  <!-- Schedule Cards -->
+  <div class="table-header" style="margin-bottom:16px">
+    <span class="chart-title">Scheduled Reports</span>
+    <span class="chart-tag mono" id="schedule-count"></span>
+  </div>
+  <div class="schedule-grid" id="schedule-grid">
+    <div class="loading-row">Loading schedules...</div>
+  </div>
+
+  <!-- Run History -->
+  <section class="table-section">
+    <div class="table-header">
+      <span class="chart-title">Run History</span>
+      <span class="chart-tag mono">last 50 executions</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Report</th><th>Type</th><th>Ran At</th>
+            <th>Status</th><th>Rows</th><th>Download</th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody">
+          <tr><td colspan="6" class="loading-row">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/reports.js"></script>
+</body>
+</html>

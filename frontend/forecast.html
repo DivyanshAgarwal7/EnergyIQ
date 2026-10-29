@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnergyIQ — Forecast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* Method legend pills */
+  .method-legend { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+  .method-pill {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 12px; border-radius:20px;
+    font-family:'DM Mono',monospace; font-size:0.72rem;
+    border:1px solid var(--border);
+  }
+  .method-dot { width:8px; height:8px; border-radius:50%; }
+
+  /* Forecast table method columns */
+  .col-ma     { color: #4db8ff; }
+  .col-trend  { color: #c084fc; }
+  .col-seas   { color: #f0a500; }
+  .col-ens    { color: #2dd4a0; font-weight:500; }
+
+  /* Confidence bar */
+  .conf-bar-bg   { width:60px; height:4px; background:var(--border); border-radius:2px; display:inline-block; vertical-align:middle; }
+  .conf-bar-fill { height:4px; border-radius:2px; background:var(--accent); }
+
+  /* Generate button state */
+  .gen-btn { min-width:160px; }
+  .gen-btn.loading { opacity:0.6; pointer-events:none; }
+
+  /* Threshold gauge cards */
+  .threshold-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
+    gap:14px;
+    margin-bottom:28px;
+  }
+  .threshold-card {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:16px 18px;
+    position:relative; overflow:hidden;
+  }
+  .threshold-card.danger  { border-color:rgba(240,80,80,0.4); }
+  .threshold-card.warning { border-color:rgba(240,165,0,0.35); }
+  .threshold-card.ok      { border-color:rgba(45,212,160,0.25); }
+  .tc-name  { font-size:0.82rem; font-weight:500; margin-bottom:2px;
+              white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tc-bld   { font-size:0.7rem; color:var(--text-muted);
+              font-family:'DM Mono',monospace; margin-bottom:12px; }
+  .tc-gauge-bg  { height:6px; background:var(--border); border-radius:3px; margin-bottom:6px; }
+  .tc-gauge-fill{ height:6px; border-radius:3px; transition:width 0.7s ease; }
+  .tc-meta { display:flex; justify-content:space-between;
+             font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--text-muted); }
+  .tc-pct  { font-family:'Syne',sans-serif; font-weight:700; font-size:1.4rem; }
+
+  /* Section tabs same as inefficiency page */
+  .section-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px; }
+  .stab { padding:10px 22px; border:none; background:transparent; color:var(--text-secondary);
+    font-family:'DM Sans',sans-serif; font-size:0.88rem; cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-1px; transition:color 0.15s,border-color 0.15s; }
+  .stab:hover { color:var(--text-primary); }
+  .stab.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:500; }
+
+  /* Accuracy badges */
+  .acc-excellent { background:rgba(45,212,160,0.12); color:#2dd4a0; }
+  .acc-good      { background:rgba(77,184,255,0.12);  color:#4db8ff; }
+  .acc-acceptable{ background:rgba(240,165,0,0.12);   color:#f0a500; }
+  .acc-poor      { background:rgba(240,80,80,0.15);   color:#f05050; }
+
+  .export-btn {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 14px;
+    border-radius:var(--radius); border:1px solid var(--border-light);
+    background:transparent; color:var(--text-secondary);
+    font-family:'DM Sans',sans-serif; font-size:0.8rem;
+    cursor:pointer; text-decoration:none; transition:all 0.15s;
+  }
+  .export-btn:hover { border-color:var(--green); color:var(--green); background:var(--green-dim); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-icon"></span>
+    <span class="logo-text">Enerlytics</span>
+  </div>
+  <nav class="nav">
+    <a href="index.html"         class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="analytics.html"     class="nav-item"><span class="nav-icon">◈</span> Analytics</a>
+    <a href="alerts.html"        class="nav-item">
+      <span class="nav-icon">◉</span> Alerts
+      <span class="badge" id="alert-badge" style="display:none">!</span>
+    </a>
+    <a href="devices.html"       class="nav-item"><span class="nav-icon">◎</span> Devices</a>
+    <a href="trend.html"         class="nav-item"><span class="nav-icon">◬</span> Trend</a>
+    <a href="inefficiency.html"  class="nav-item"><span class="nav-icon">◍</span> Inefficiency</a>
+    <a href="forecast.html"      class="nav-item active"><span class="nav-icon">◐</span> Forecast</a>
+    <a href="reports.html"       class="nav-item"><span class="nav-icon">◑</span> Reports</a>
+  </nav>
+  <div class="sidebar-footer"><span class="mono">v3.0 · Phase 3</span></div>
+</aside>
+
+<main class="main">
+
+  <header class="page-header">
+    <div>
+      <h1>Forecast</h1>
+      <p class="subtitle">Rule-based prediction · 3 methods · threshold monitoring</p>
+    </div>
+    <div class="header-controls">
+      <a class="export-btn" href="#" id="export-forecast-btn" target="_blank">↓ Export Forecast</a>
+      <button class="btn-primary gen-btn" id="gen-btn" onclick="generateForecasts()">Generate Forecasts</button>
+    </div>
+  </header>
+
+  <!-- KPI Cards -->
+  <section class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:28px">
+    <div class="kpi-card kpi-highlight">
+      <div class="kpi-label">Next Month</div>
+      <div class="kpi-value" id="kpi-next-month">—</div>
+      <div class="kpi-sub">Forecast period</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Predicted Total</div>
+      <div class="kpi-value" id="kpi-predicted-total">—</div>
+      <div class="kpi-sub">All buildings (kWh)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Devices Forecasted</div>
+      <div class="kpi-value" id="kpi-devices-fcst">—</div>
+      <div class="kpi-sub">Active devices</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Confidence</div>
+      <div class="kpi-value" id="kpi-confidence">—</div>
+      <div class="kpi-sub">Across all methods</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Historical Error</div>
+      <div class="kpi-value" id="kpi-hist-error">—</div>
+      <div class="kpi-sub">Avg prediction error</div>
+    </div>
+  </section>
+
+  <!-- Forecast chart + method legend -->
+  <section class="chart-card" style="margin-bottom:28px">
+    <div class="chart-header">
+      <span class="chart-title">Building Forecast — Next Month</span>
+      <div class="method-legend">
+        <span class="method-pill"><span class="method-dot" style="background:#2dd4a0"></span>Ensemble</span>
+        <span class="method-pill"><span class="method-dot" style="background:#4db8ff"></span>Moving Avg</span>
+        <span class="method-pill"><span class="method-dot" style="background:#c084fc"></span>Trend</span>
+        <span class="method-pill"><span class="method-dot" style="background:#f0a500"></span>Seasonal</span>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="forecast-chart"></canvas>
+    </div>
+  </section>
+
+  <!-- Section tabs -->
+  <div class="section-tabs">
+    <button class="stab active" id="stab-devices"    onclick="showTab('devices')">Device Forecasts</button>
+    <button class="stab"        id="stab-thresholds" onclick="showTab('thresholds')">Thresholds</button>
+    <button class="stab"        id="stab-accuracy"   onclick="showTab('accuracy')">Forecast Accuracy</button>
+  </div>
+
+  <!-- Tab: Device Forecasts -->
+  <div id="tab-devices">
+    <div class="table-header" style="margin-bottom:16px">
+      <span class="chart-title">Per-Device Predictions</span>
+      <select id="fcst-building-filter" class="select" onchange="loadForecastTable()">
+        <option value="">All buildings</option>
+      </select>
+    </div>
+    <div class="table-wrap" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0 0 4px">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>Building</th>
+            <th>Type</th>
+            <th class="col-ma">Mov. Avg</th>
+            <th class="col-trend">Trend</th>
+            <th class="col-seas">Seasonal</th>
+            <th class="col-ens">Ensemble</th>
+            <th>Confidence</th>
+          </tr>
+        </thead>
+        <tbody id="forecast-tbody">
+          <tr><td colspan="8" class="loading-row">Click "Generate Forecasts" to run predictions</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: Thresholds -->
+  <div id="tab-thresholds" style="display:none">
+    <div class="table-header" style="margin-bottom:16px">
+      <span class="chart-title">Threshold Utilisation — Current Month</span>
+      <div style="display:flex;gap:10px">
+        <button class="btn-sm" onclick="checkThresholdsNow()">Run Check Today</button>
+        <span id="threshold-check-result" style="font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--green);display:none"></span>
+      </div>
+    </div>
+    <div class="threshold-grid" id="threshold-grid">
+      <div class="loading-row">Loading threshold data...</div>
+    </div>
+  </div>
+
+  <!-- Tab: Forecast Accuracy -->
+  <div id="tab-accuracy" style="display:none">
+    <div class="table-header" style="margin-bottom:16px">
+      <span class="chart-title">Historical Forecast Accuracy</span>
+      <select id="acc-method-filter" class="select" onchange="loadAccuracy()">
+        <option value="">All methods</option>
+        <option value="MOVING_AVG">Moving Average</option>
+        <option value="TREND_EXTRAPOLATION">Trend Extrapolation</option>
+        <option value="SEASONAL">Seasonal</option>
+      </select>
+    </div>
+    <div id="accuracy-empty" style="display:none" class="loading-row" style="color:var(--text-muted)">
+      No accuracy data yet — accuracy is populated after a forecast month has ended
+      and <code>sp_update_forecast_accuracy</code> has been called.
+    </div>
+    <div class="table-wrap" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0 0 4px">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Method</th><th>Device</th><th>Building</th>
+            <th>Month</th><th>Predicted</th><th>Actual</th>
+            <th>Error %</th><th>Rating</th>
+          </tr>
+        </thead>
+        <tbody id="accuracy-tbody">
+          <tr><td colspan="8" class="loading-row">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/forecast.js"></script>
+</body>
+</html>

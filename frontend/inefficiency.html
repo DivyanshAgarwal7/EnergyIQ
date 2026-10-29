@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnergyIQ — Inefficiency Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* ---- Tabs ---- */
+  .section-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .stab {
+    padding: 10px 22px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .stab:hover { color: var(--text-primary); }
+  .stab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ---- Severity badges ---- */
+  .sev-critical { background: rgba(240,80,80,0.18); color: #f05050; }
+  .sev-high     { background: rgba(240,165,0,0.18);  color: #f0a500; }
+  .sev-moderate { background: rgba(77,184,255,0.15); color: #4db8ff; }
+  .sev-low      { background: rgba(45,212,160,0.12); color: #2dd4a0; }
+
+  /* ---- Wasted kWh highlight ---- */
+  .wasted-cell { color: var(--red); font-family: 'DM Mono', monospace; font-weight: 500; }
+
+  /* ---- Sweep controls ---- */
+  .sweep-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .sweep-row label { font-size: 0.82rem; color: var(--text-secondary); }
+  .range-wrap { display: flex; align-items: center; gap: 10px; }
+  .range-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--accent);
+    min-width: 36px;
+  }
+  input[type=range] { accent-color: var(--accent); width: 140px; }
+
+  /* ---- Ratio bar ---- */
+  .ratio-bar-bg { width: 80px; height: 5px; background: var(--border); border-radius: 3px; display:inline-block; vertical-align:middle; }
+  .ratio-bar-fill { height: 5px; border-radius: 3px; }
+
+  /* ---- Weekend chart ---- */
+  .weekend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .weekend-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+  }
+  .weekend-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .wk-name { font-size: 0.85rem; font-weight: 500; }
+  .wk-bld  { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+  .wk-pct  { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.3rem; }
+  .wk-bars { display: flex; gap: 8px; align-items: flex-end; height: 50px; }
+  .wk-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .wk-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 4px; transition: height 0.6s ease; }
+  .wk-bar-label { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--text-muted); }
+
+  a.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  a.export-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-icon"></span>
+    <span class="logo-text">Enerlytics</span>
+  </div>
+  <nav class="nav">
+    <a href="index.html"         class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="analytics.html"     class="nav-item"><span class="nav-icon">◈</span> Analytics</a>
+    <a href="alerts.html"        class="nav-item">
+      <span class="nav-icon">◉</span> Alerts
+      <span class="badge" id="alert-badge" style="display:none">!</span>
+    </a>
+    <a href="devices.html"       class="nav-item"><span class="nav-icon">◎</span> Devices</a>
+    <a href="trend.html"         class="nav-item"><span class="nav-icon">◬</span> Trend</a>
+    <a href="inefficiency.html"  class="nav-item active"><span class="nav-icon">◍</span> Inefficiency</a>
+  </nav>
+  <div class="sidebar-footer"><span class="mono">v2.0 · Phase 2</span></div>
+</aside>
+
+<main class="main">
+
+  <header class="page-header">
+    <div>
+      <h1>Inefficiency Detection</h1>
+      <p class="subtitle">Below-threshold devices · weekend anomalies · degradation scoring</p>
+    </div>
+    <div class="header-controls">
+      <a class="export-btn" href="#" id="export-ineff-btn" target="_blank">↓ Inefficient Devices</a>
+      <a class="export-btn" href="#" id="export-deg-btn"   target="_blank">↓ Degradation Report</a>
+    </div>
+  </header>
+
+  <!-- KPI cards -->
+  <section class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:28px">
+    <div class="kpi-card kpi-danger">
+      <div class="kpi-label">Inefficient Devices</div>
+      <div class="kpi-value" id="kpi-ineff-count">—</div>
+      <div class="kpi-sub">Below 80% efficiency</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Wasted kWh</div>
+      <div class="kpi-value" id="kpi-wasted" style="color:var(--red)">—</div>
+      <div class="kpi-sub">Excess consumption</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Worst Building</div>
+      <div class="kpi-value" id="kpi-worst-bld" style="font-size:1rem;padding-top:6px">—</div>
+      <div class="kpi-sub">Highest wasted kWh</div>
+    </div>
+    <div class="kpi-card kpi-highlight">
+      <div class="kpi-label">Degrading Devices</div>
+      <div class="kpi-value" id="kpi-degrading">—</div>
+      <div class="kpi-sub">Consumption rising ≥15%</div>
+    </div>
+  </section>
+
+  <!-- Section Tabs -->
+  <div class="section-tabs">
+    <button class="stab active" id="stab-ineff"   onclick="showTab('inefficient')">Inefficient Devices</button>
+    <button class="stab"        id="stab-degrade" onclick="showTab('degradation')">Degradation</button>
+    <button class="stab"        id="stab-weekend" onclick="showTab('weekend')">Weekend Anomalies</button>
+    <button class="stab"        id="stab-rank"    onclick="showTab('ranking')">Efficiency Ranking</button>
+  </div>
+
+  <!-- Tab: Inefficient Devices -->
+  <div id="tab-inefficient">
+    <div class="table-header" style="margin-bottom:16px">
+      <span class="chart-title">Devices Below 80% Efficiency</span>
+      <select id="ineff-building-filter" class="select" onchange="loadInefficientDevices()">
+        <option value="">All buildings</option>
+      </select>
+    </div>
+    <div class="table-wrap" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0 0 4px">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Device</th><th>Building</th><th>Type</th>
+            <th>Actual kWh</th><th>Expected kWh</th>
+            <th>Efficiency %</th><th>Wasted kWh</th><th>Days</th>
+          </tr>
+        </thead>
+        <tbody id="ineff-tbody">
+          <tr><td colspan="8" class="loading-row">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: Degradation -->
+  <div id="tab-degradation" style="display:none">
+    <div class="sweep-row">
+      <label>Min degradation ratio:</label>
+      <div class="range-wrap">
+        <input type="range" id="deg-ratio" min="1.05" max="2.0" step="0.05" value="1.15"
+               oninput="document.getElementById('deg-ratio-val').textContent = parseFloat(this.value).toFixed(2) + 'x'; loadDegradation()">
+        <span class="range-val" id="deg-ratio-val">1.15x</span>
+      </div>
+      <span style="color:var(--text-muted);font-size:0.78rem;font-family:'DM Mono',monospace">
+        recent 30d avg / baseline 30-60d avg
+      </span>
+    </div>
+    <div class="table-wrap" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0 0 4px">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Device</th><th>Building</th><th>Type</th>
+            <th>Recent Avg</th><th>Baseline Avg</th>
+            <th>Ratio</th><th>Severity</th><th>Age (months)</th>
+          </tr>
+        </thead>
+        <tbody id="deg-tbody">
+          <tr><td colspan="8" class="loading-row">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: Weekend Anomalies -->
+  <div id="tab-weekend" style="display:none">
+    <div class="sweep-row">
+      <label>Run weekend anomaly sweep (logs alerts):</label>
+      <div class="range-wrap">
+        <input type="range" id="sweep-threshold" min="40" max="100" step="5" value="70"
+               oninput="document.getElementById('sweep-val').textContent = this.value + '%'">
+        <span class="range-val" id="sweep-val">70%</span>
+      </div>
+      <button class="btn-primary" onclick="runWeekendSweep()">Run Sweep</button>
+      <span id="sweep-result" style="display:none;font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--green)"></span>
+    </div>
+    <div class="weekend-grid" id="weekend-grid">
+      <div class="loading-row">Loading weekend data...</div>
+    </div>
+  </div>
+
+  <!-- Tab: Efficiency Ranking -->
+  <div id="tab-ranking" style="display:none">
+    <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center">
+      <button class="period-btn active" id="rank-asc"  onclick="loadRanking('asc',  this)">Worst First</button>
+      <button class="period-btn"        id="rank-desc" onclick="loadRanking('desc', this)">Best First</button>
+      <span style="margin-left:auto">
+        <canvas id="ranking-chart" style="height:180px;width:100%;max-width:700px;display:block"></canvas>
+      </span>
+    </div>
+    <div class="table-wrap" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0 0 4px">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Device</th><th>Building</th><th>Type</th>
+            <th>Efficiency %</th><th>Label</th><th>Wasted kWh</th>
+          </tr>
+        </thead>
+        <tbody id="rank-tbody">
+          <tr><td colspan="7" class="loading-row">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/inefficiency.js"></script>
+</body>
+</html>
